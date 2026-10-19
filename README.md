@@ -30,3 +30,14 @@ The interface displays animated electric-blue waveform rings for both engines; t
 shape and spacing react to engine settings. Controls are arranged in a mirrored
 layout for quick comparison between the low and high engines.
 REAPER can scan the generated `.vst3` bundle directly from the build output directory.
+
+## Project Reflection
+
+This is the first project I have undertaken that truly took advantage of AI. It was 
+unsettling at first, not being in the drivers seat, and it almost felt too easy. 
+However, it allowed me to build out a fairly robust plugin in just a few hours, which
+would've probably taken weeks without help. I would like to continue to develop these 
+plugins, especially with a more hands-on approach so that I can learn the intricacies 
+of VST, but for now I think this is a good introduction. If you want to use the plugin
+yourself, go ahead! I will tweak it here and there as I use it for my own use, so stay
+tuned!
