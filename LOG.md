@@ -13,6 +13,7 @@
 11. I agree, lets try out the frequency split engines!
 12. I like this feature a lot, but now it feels like coupling control is redundant. Is there some other way we can utilize it or should we remove it?
 13. Awesome, lets do that?
+14. I'm envisioning 2 electric blue circles/outlines that represent each engine, potentially with spikes the represent each of the waveforms on them. then, as the various knobs are controlled the two shapes move closer or farther apart and react accordingly. Please make sure the knob layout is as symettrical as possible, if you can.
 
 ## Project answers
 
@@ -48,3 +49,4 @@
 - Frequency-split VST3 build completed successfully.
 - Coupling repurposed so the smoothed low-band envelope dynamically drives Engine B's high-band distortion amount.
 - Implemented separate engine styles/Drive, a shared linear Blend control, and envelope-driven Coupling (up to +12 dB Engine B Drive) with corresponding level compensation.
+- Added animated electric-blue waveform rings that react to engine styles, Drive, Blend, Coupling, and crossover settings; adjusted editor to a mirrored control layout.

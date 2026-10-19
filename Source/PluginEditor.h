@@ -2,7 +2,8 @@
 
 #include "PluginProcessor.h"
 
-class BinarySunDistortionAudioProcessorEditor final : public juce::AudioProcessorEditor
+class BinarySunDistortionAudioProcessorEditor final : public juce::AudioProcessorEditor,
+                                                      private juce::Timer
 {
 public:
     explicit BinarySunDistortionAudioProcessorEditor(BinarySunDistortionAudioProcessor& processor);
@@ -11,6 +12,9 @@ public:
     void resized() override;
 
 private:
+    void timerCallback() override;
+
+    BinarySunDistortionAudioProcessor& pluginProcessor;
     std::array<juce::Slider, 11> controls;
     std::array<juce::Label, 11> controlLabels;
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 11>

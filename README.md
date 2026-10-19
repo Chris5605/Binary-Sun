@@ -26,4 +26,7 @@ The gate combines up to 18 dB of input attenuation with a smoothed post-distorti
 stage keyed from the clean input, providing up to 48 dB of additional attenuation
 below the threshold. Automatic output compensation reduces the level by up to 9 dB
 as Drive increases.
+The interface displays animated electric-blue waveform rings for both engines; their
+shape and spacing react to engine settings. Controls are arranged in a mirrored
+layout for quick comparison between the low and high engines.
 REAPER can scan the generated `.vst3` bundle directly from the build output directory.
