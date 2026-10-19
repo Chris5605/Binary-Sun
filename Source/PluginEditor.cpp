@@ -3,14 +3,24 @@
 
 BinarySunDistortionAudioProcessorEditor::BinarySunDistortionAudioProcessorEditor(
     BinarySunDistortionAudioProcessor& audioProcessor)
-    : AudioProcessorEditor(audioProcessor),
-      modeAttachment(audioProcessor.parameters, "mode", modeSelector)
+    : AudioProcessorEditor(audioProcessor)
 {
-    static constexpr std::array<const char*, 7> parameterIds {{
-        "drive", "output", "tone", "gate", "low", "mid", "high"
+    static constexpr std::array<const char*, 11> parameterIds {{
+        "drive", "driveB", "blend", "coupling", "crossover", "output",
+        "tone", "gate", "low", "mid", "high"
     }};
-    static constexpr std::array<const char*, 7> parameterNames {{
-        "Drive", "Output", "Tone", "Gate", "Low", "Mid", "High"
+    static constexpr std::array<const char*, 11> parameterNames {{
+        "Engine A Drive", "Engine B Drive", "Blend", "Coupling", "Crossover", "Output",
+        "Tone", "Gate", "Low", "Mid", "High"
+    }};
+    static constexpr std::array<const char*, 2> modeParameterIds {{ "mode", "modeB" }};
+    static constexpr std::array<const char*, 2> modeNames {{ "Engine A", "Engine B" }};
+    static constexpr std::array<const char*, 5> distortionNames {{
+        "Warm (Soft Clip)",
+        "Hard Clip",
+        "Asymmetric Overdrive",
+        "Fuzz",
+        "Tube Saturation"
     }};
 
     for (size_t index = 0; index < controls.size(); ++index)
@@ -31,18 +41,22 @@ BinarySunDistortionAudioProcessorEditor::BinarySunDistortionAudioProcessorEditor
                 audioProcessor.parameters, parameterIds[index], slider);
     }
 
-    modeLabel.setText("Distortion", juce::dontSendNotification);
-    modeLabel.setJustificationType(juce::Justification::right);
-    addAndMakeVisible(modeLabel);
+    for (size_t engine = 0; engine < modeSelectors.size(); ++engine)
+    {
+        modeLabels[engine].setText(modeNames[engine], juce::dontSendNotification);
+        modeLabels[engine].setJustificationType(juce::Justification::right);
+        addAndMakeVisible(modeLabels[engine]);
 
-    modeSelector.addItem("Warm (Soft Clip)", 1);
-    modeSelector.addItem("Hard Clip", 2);
-    modeSelector.addItem("Asymmetric Overdrive", 3);
-    modeSelector.addItem("Fuzz", 4);
-    modeSelector.addItem("Tube Saturation", 5);
-    addAndMakeVisible(modeSelector);
+        for (size_t style = 0; style < distortionNames.size(); ++style)
+            modeSelectors[engine].addItem(distortionNames[style], static_cast<int>(style + 1));
 
-    setSize(720, 390);
+        addAndMakeVisible(modeSelectors[engine]);
+        modeAttachments[engine] = std::make_unique<
+            juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+                audioProcessor.parameters, modeParameterIds[engine], modeSelectors[engine]);
+    }
+
+    setSize(760, 500);
 }
 
 void BinarySunDistortionAudioProcessorEditor::paint(juce::Graphics& graphics)
@@ -60,14 +74,16 @@ void BinarySunDistortionAudioProcessorEditor::paint(juce::Graphics& graphics)
 
 void BinarySunDistortionAudioProcessorEditor::resized()
 {
-    modeLabel.setBounds(150, 48, 105, 28);
-    modeSelector.setBounds(265, 48, 190, 28);
+    modeLabels[0].setBounds(60, 50, 105, 28);
+    modeSelectors[0].setBounds(170, 50, 220, 28);
+    modeLabels[1].setBounds(390, 50, 105, 28);
+    modeSelectors[1].setBounds(500, 50, 220, 28);
 
     constexpr int columns = 4;
-    constexpr int left = 12;
-    constexpr int top = 88;
-    constexpr int cellWidth = 174;
-    constexpr int cellHeight = 142;
+    constexpr int left = 14;
+    constexpr int top = 104;
+    constexpr int cellWidth = 182;
+    constexpr int cellHeight = 128;
 
     for (size_t index = 0; index < controls.size(); ++index)
     {

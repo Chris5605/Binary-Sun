@@ -9,6 +9,10 @@
 7. Awesome, that sounds great. Now lets add a few more styles of distortion.
 8. Sounds great as well! I'm hearing some noise being picked up in the fuzz, do we have a noise gate implemetned in the plugin? If so, could we add a light noise gate?
 9. The background noise on the fuzz is still definetly there. Do you have any other ideas on how to reduce it?
+10. Awesome, I like the idea that you recommended a lot. Lets try it out and see how it sounds.
+11. I agree, lets try out the frequency split engines!
+12. I like this feature a lot, but now it feels like coupling control is redundant. Is there some other way we can utilize it or should we remove it?
+13. Awesome, lets do that?
 
 ## Project answers
 
@@ -38,3 +42,9 @@
 - A noise gate was not previously implemented; a gentle adjustable input gate is being added for noise reduction before distortion.
 - Additional fuzz-noise reduction approach: retain the input gate and add a gentle post-distortion gate keyed from the clean input.
 - Implemented and built the signal-keyed post-distortion gate; it uses the existing Gate threshold control and smooth attack/release.
+- Requested Binary Sun signature concept: two independently voiced parallel distortion engines, blended together, with Engine A dynamically influencing Engine B through a Coupling control.
+- Requested frequency-split engines: route lows to Engine A and highs to Engine B with an adjustable crossover frequency.
+- Implemented a JUCE Linkwitz-Riley low/high crossover, routed lows to Engine A and highs to Engine B, added a 150-3000 Hz Crossover control, and set Blend to an equal-power balance with a 50% default.
+- Frequency-split VST3 build completed successfully.
+- Coupling repurposed so the smoothed low-band envelope dynamically drives Engine B's high-band distortion amount.
+- Implemented separate engine styles/Drive, a shared linear Blend control, and envelope-driven Coupling (up to +12 dB Engine B Drive) with corresponding level compensation.

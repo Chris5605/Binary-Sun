@@ -11,13 +11,14 @@ public:
     void resized() override;
 
 private:
-    std::array<juce::Slider, 7> controls;
-    std::array<juce::Label, 7> controlLabels;
-    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 7>
+    std::array<juce::Slider, 11> controls;
+    std::array<juce::Label, 11> controlLabels;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 11>
         controlAttachments;
-    juce::Label modeLabel;
-    juce::ComboBox modeSelector;
-    juce::AudioProcessorValueTreeState::ComboBoxAttachment modeAttachment;
+    std::array<juce::Label, 2> modeLabels;
+    std::array<juce::ComboBox, 2> modeSelectors;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, 2>
+        modeAttachments;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BinarySunDistortionAudioProcessorEditor)
 };

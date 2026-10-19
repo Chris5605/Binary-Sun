@@ -63,7 +63,7 @@ BinarySunDistortionAudioProcessor::createParameterLayout()
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "mode", 1 },
-        "Mode",
+        "Engine A Style",
         juce::StringArray {
             "Warm (Soft Clip)",
             "Hard Clip",
@@ -72,12 +72,47 @@ BinarySunDistortionAudioProcessor::createParameterLayout()
             "Tube Saturation"
         },
         0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "modeB", 1 },
+        "Engine B Style",
+        juce::StringArray {
+            "Warm (Soft Clip)",
+            "Hard Clip",
+            "Asymmetric Overdrive",
+            "Fuzz",
+            "Tube Saturation"
+        },
+        4));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "drive", 1 },
-        "Drive",
+        "Engine A Drive",
         juce::NormalisableRange<float> { 0.0f, maximumDriveDb, 0.1f },
         0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "driveB", 1 },
+        "Engine B Drive",
+        juce::NormalisableRange<float> { 0.0f, maximumDriveDb, 0.1f },
+        12.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "blend", 1 },
+        "Blend",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f },
+        50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "coupling", 1 },
+        "Coupling",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.1f },
+        0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "crossover", 1 },
+        "Crossover",
+        juce::NormalisableRange<float> { 150.0f, 3000.0f, 1.0f, 0.35f },
+        700.0f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "output", 1 },
         "Output",
@@ -111,13 +146,17 @@ BinarySunDistortionAudioProcessor::createParameterLayout()
     return layout;
 }
 
-void BinarySunDistortionAudioProcessor::prepareToPlay(double sampleRate, int)
+void BinarySunDistortionAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
     lastFilterValues.fill(-1.0f);
+    lastCrossoverFrequency = -1.0f;
     gateEnvelope.fill(0.0f);
+    lowBandEnvelope.fill(0.0f);
     gateGain.fill(1.0f);
     postGateGain.fill(1.0f);
+    crossover.prepare({ sampleRate, static_cast<juce::uint32>(samplesPerBlock), 2 });
+    crossover.reset();
     for (auto& channel : toneFilters)
         channel.reset();
     for (auto& band : eqFilters)
@@ -149,7 +188,11 @@ void BinarySunDistortionAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     for (auto channel = inputChannels; channel < outputChannels; ++channel)
         buffer.clear(channel, 0, buffer.getNumSamples());
 
-    const auto driveDb = parameters.getRawParameterValue("drive")->load();
+    const auto driveADb = parameters.getRawParameterValue("drive")->load();
+    const auto driveBDb = parameters.getRawParameterValue("driveB")->load();
+    const auto blend = parameters.getRawParameterValue("blend")->load() * 0.01f;
+    const auto coupling = parameters.getRawParameterValue("coupling")->load() * 0.01f;
+    const auto crossoverFrequency = parameters.getRawParameterValue("crossover")->load();
     const auto outputDb = parameters.getRawParameterValue("output")->load();
     const auto toneHz = parameters.getRawParameterValue("tone")->load();
     const auto gateThresholdDb = parameters.getRawParameterValue("gate")->load();
@@ -160,6 +203,14 @@ void BinarySunDistortionAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }};
 
     const auto safeNyquist = static_cast<float>(currentSampleRate * 0.45);
+    const auto safeCrossoverFrequency = juce::jlimit(
+        20.0f, safeNyquist, crossoverFrequency);
+    if (safeCrossoverFrequency != lastCrossoverFrequency)
+    {
+        crossover.setCutoffFrequency(safeCrossoverFrequency);
+        lastCrossoverFrequency = safeCrossoverFrequency;
+    }
+
     const auto cutoff = juce::jlimit(20.0f, safeNyquist, toneHz);
     const std::array<float, 5> filterValues {{
         cutoff, eqGains[0], eqGains[1], eqGains[2], safeNyquist
@@ -199,22 +250,29 @@ void BinarySunDistortionAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lastFilterValues = filterValues;
     }
 
-    const auto inputGain = juce::Decibels::decibelsToGain(driveDb);
+    const auto inputGainA = juce::Decibels::decibelsToGain(driveADb);
+    const auto averageDriveDb = 0.5f * (driveADb + driveBDb);
     const auto driveCompensationDb =
-        maximumDriveCompensationDb * (driveDb / maximumDriveDb);
+        maximumDriveCompensationDb * (averageDriveDb / maximumDriveDb);
     const auto outputGain =
         juce::Decibels::decibelsToGain(outputDb + driveCompensationDb);
-    const auto mode = static_cast<DistortionMode>(
+    const auto modeA = static_cast<DistortionMode>(
         juce::roundToInt(parameters.getRawParameterValue("mode")->load()));
+    const auto modeB = static_cast<DistortionMode>(
+        juce::roundToInt(parameters.getRawParameterValue("modeB")->load()));
     const auto attackCoefficient =
         std::exp(-1.0f / (static_cast<float>(currentSampleRate) * 0.005f));
     const auto releaseCoefficient =
         std::exp(-1.0f / (static_cast<float>(currentSampleRate) * 0.12f));
+    const auto blendAngle = blend * juce::MathConstants<float>::halfPi;
+    const auto engineAGain = std::cos(blendAngle);
+    const auto engineBGain = std::sin(blendAngle);
 
     for (auto channel = 0; channel < inputChannels; ++channel)
     {
         auto* samples = buffer.getWritePointer(channel);
         auto& envelope = gateEnvelope[static_cast<size_t>(channel)];
+        auto& lowEnvelope = lowBandEnvelope[static_cast<size_t>(channel)];
         auto& gate = gateGain[static_cast<size_t>(channel)];
         auto& postGate = postGateGain[static_cast<size_t>(channel)];
 
@@ -227,7 +285,26 @@ void BinarySunDistortionAudioProcessor::processBlock(juce::AudioBuffer<float>& b
             envelope = detectorCoefficient * envelope
                 + (1.0f - detectorCoefficient) * magnitude;
 
+            float lowBand = 0.0f;
+            float highBand = 0.0f;
+            crossover.processSample(channel, input, lowBand, highBand);
+
+            const auto lowMagnitude = std::abs(lowBand);
+            const auto lowDetectorCoefficient =
+                lowMagnitude > lowEnvelope ? attackCoefficient : releaseCoefficient;
+            lowEnvelope = lowDetectorCoefficient * lowEnvelope
+                + (1.0f - lowDetectorCoefficient) * lowMagnitude;
+
             const auto envelopeDb = juce::Decibels::gainToDecibels(envelope, -120.0f);
+            const auto lowEnvelopeDb = juce::Decibels::gainToDecibels(lowEnvelope, -120.0f);
+            const auto couplingAmount = juce::jlimit(
+                0.0f, 1.0f, (lowEnvelopeDb + 36.0f) / 30.0f);
+            const auto couplingDriveBoostDb = coupling * couplingAmount * 12.0f;
+            const auto coupledDriveDb = driveBDb + couplingDriveBoostDb;
+            const auto inputGainB = juce::Decibels::decibelsToGain(coupledDriveDb);
+            const auto couplingCompensationGain = juce::Decibels::decibelsToGain(
+                maximumDriveCompensationDb * couplingDriveBoostDb
+                / (2.0f * maximumDriveDb));
             const auto targetGateDb = juce::jlimit(
                 -gateRangeDb, 0.0f, envelopeDb - gateThresholdDb);
             const auto targetGate = juce::Decibels::decibelsToGain(targetGateDb);
@@ -241,14 +318,15 @@ void BinarySunDistortionAudioProcessor::processBlock(juce::AudioBuffer<float>& b
                 targetPostGate > postGate ? attackCoefficient : releaseCoefficient;
             postGate = postGateCoefficient * postGate + (1.0f - postGateCoefficient) * targetPostGate;
 
-            auto value = input * gate * inputGain;
-            value = applyDistortion(value, mode);
+            const auto engineA = applyDistortion(lowBand * gate * inputGainA, modeA);
+            const auto engineB = applyDistortion(highBand * gate * inputGainB, modeB);
+            auto value = engineA * engineAGain + engineB * engineBGain;
             value = toneFilters[static_cast<size_t>(channel)].processSample(value);
 
             for (auto& band : eqFilters)
                 value = band[static_cast<size_t>(channel)].processSample(value);
 
-            samples[sample] = value * postGate * outputGain;
+            samples[sample] = value * postGate * outputGain * couplingCompensationGain;
         }
     }
 }

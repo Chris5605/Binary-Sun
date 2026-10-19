@@ -42,12 +42,15 @@ public:
 private:
     using Filter = juce::dsp::IIR::Filter<float>;
 
+    juce::dsp::LinkwitzRileyFilter<float> crossover;
     std::array<Filter, 2> toneFilters;
     std::array<std::array<Filter, 2>, 3> eqFilters;
     std::array<float, 2> gateEnvelope {};
+    std::array<float, 2> lowBandEnvelope {};
     std::array<float, 2> gateGain { 1.0f, 1.0f };
     std::array<float, 2> postGateGain { 1.0f, 1.0f };
     double currentSampleRate = 44100.0;
+    float lastCrossoverFrequency = -1.0f;
     std::array<float, 5> lastFilterValues {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BinarySunDistortionAudioProcessor)
